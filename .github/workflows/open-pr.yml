@@ -27,6 +27,7 @@ jobs:
     env:
       UPSTREAM: Teskann/QuaX
       FORK_OWNER: ${{ github.repository_owner }}
+      FORK_REPO: quax-fork
       GH_TOKEN: ${{ secrets.QUAX_BOT_TOKEN }}
       BRANCH: ${{ inputs.branch }}
       BASE: ${{ inputs.base }}
@@ -48,6 +49,7 @@ jobs:
           if [ -n "$PR_TITLE" ]; then
             args+=(--title "$PR_TITLE" --body "$PR_BODY")
           else
-            args+=(--fill)
+            message=$(gh api "repos/$FORK_OWNER/$FORK_REPO/commits/$BRANCH" --jq .commit.message)
+            args+=(--title "${message%%$'\n'*}" --body "$(tail -n +3 <<<"$message")")
           fi
           gh pr create "${args[@]}"
