@@ -1,0 +1,53 @@
+name: Open PR on QuaX
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: Branch of the fork to open the pull request from
+        required: true
+        type: string
+      base:
+        description: Branch of QuaX to target
+        default: master
+        type: string
+      title:
+        description: Pull request title (defaults to the commit messages)
+        type: string
+      body:
+        description: Pull request description
+        type: string
+
+permissions: {}
+
+jobs:
+  open-pr:
+    runs-on: ubuntu-latest
+    environment: main
+    env:
+      UPSTREAM: Teskann/QuaX
+      FORK_OWNER: ${{ github.repository_owner }}
+      GH_TOKEN: ${{ secrets.QUAX_BOT_TOKEN }}
+      BRANCH: ${{ inputs.branch }}
+      BASE: ${{ inputs.base }}
+      PR_TITLE: ${{ inputs.title }}
+      PR_BODY: ${{ inputs.body }}
+    steps:
+      - name: Skip if a pull request is already open for this branch
+        id: existing
+        run: |
+          url=$(gh pr list --repo "$UPSTREAM" --head "$FORK_OWNER:$BRANCH" \
+            --state open --json url --jq '.[0].url // empty')
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          [ -z "$url" ] || echo "Already open: $url"
+
+      - name: Open the pull request
+        if: steps.existing.outputs.url == ''
+        run: |
+          args=(--repo "$UPSTREAM" --base "$BASE" --head "$FORK_OWNER:$BRANCH")
+          if [ -n "$PR_TITLE" ]; then
+            args+=(--title "$PR_TITLE" --body "$PR_BODY")
+          else
+            args+=(--fill)
+          fi
+          gh pr create "${args[@]}"
